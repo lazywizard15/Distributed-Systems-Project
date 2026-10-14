@@ -1,0 +1,56 @@
+version: "3.8"
+
+# This spins up a full 3-node Raft cluster, each with its own Redis.
+# Run with: docker-compose up --build
+
+services:
+
+  # ── Redis instances (one per node) ────────────────────────────
+  redis1:
+    image: redis:7-alpine
+    ports: ["6381:6379"]
+
+  redis2:
+    image: redis:7-alpine
+    ports: ["6382:6379"]
+
+  redis3:
+    image: redis:7-alpine
+    ports: ["6383:6379"]
+
+  # ── Raft nodes ─────────────────────────────────────────────────
+  node1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      NODE_ID: node1
+      PORT: "8080"
+      REDIS_ADDR: redis1:6379
+      PEERS: node2:8081,node3:8082
+    ports: ["8080:8080"]
+    depends_on: [redis1, redis2, redis3]
+
+  node2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      NODE_ID: node2
+      PORT: "8081"
+      REDIS_ADDR: redis2:6379
+      PEERS: node1:8080,node3:8082
+    ports: ["8081:8081"]
+    depends_on: [redis1, redis2, redis3]
+
+  node3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      NODE_ID: node3
+      PORT: "8082"
+      REDIS_ADDR: redis3:6379
+      PEERS: node1:8080,node2:8081
+    ports: ["8082:8082"]
+    depends_on: [redis1, redis2, redis3]
